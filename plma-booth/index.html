@@ -1,0 +1,1294 @@
+<title>PLMA Booth Copilot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..900&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: phone-first single column (max 760px), sticky top bar, fixed bottom tabs.
+   Supplier specs are set like a food Nutrition Facts panel ("Facility Facts"); founding sign-ups render as a grocery shelf tag. */
+:root{
+  --bg:#EDF1EC; --surface:#FFFFFF; --surface-2:#F5F7F4; --ink:#13241D; --muted:#566760; --line:#D2DBD4;
+  --accent:#1E4A3A; --on-accent:#FFFFFF; --band:#1E4A3A; --on-band:#FFFFFF; --tag:#F6C945; --tag-ink:#2B2200;
+  --ok:#1A7347; --ok-bg:#E1F1E8; --warn:#8F5400; --warn-bg:#FAEED6; --bad:#B0251C; --bad-bg:#FAE4E1; --info:#22507A; --info-bg:#E3EDF7;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:12px; --tabh:62px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B130F; --surface:#13201A; --surface-2:#182720; --ink:#E3EDE7; --muted:#95A79D; --line:#29392F;
+  --accent:#86CDA9; --on-accent:#0B130F; --band:#163C2E; --on-band:#E9F4EE; --tag:#F6C945; --tag-ink:#2B2200;
+  --ok:#6FD39E; --ok-bg:#14301F; --warn:#F2B24C; --warn-bg:#33260E; --bad:#FF8F85; --bad-bg:#3A1916; --info:#8CC2F0; --info-bg:#132639;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0B130F; --surface:#13201A; --surface-2:#182720; --ink:#E3EDE7; --muted:#95A79D; --line:#29392F;
+  --accent:#86CDA9; --on-accent:#0B130F; --band:#163C2E; --on-band:#E9F4EE; --tag:#F6C945; --tag-ink:#2B2200;
+  --ok:#6FD39E; --ok-bg:#14301F; --warn:#F2B24C; --warn-bg:#33260E; --bad:#FF8F85; --bad-bg:#3A1916; --info:#8CC2F0; --info-bg:#132639;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%}
+body.locked{overflow:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--band)}
+h1,h2,h3,h4{font-family:var(--f-display);font-stretch:85%;margin:0;text-wrap:balance;letter-spacing:-.005em}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--accent)}
+.mono{font-family:var(--f-mono);font-size:.78rem;letter-spacing:.02em}
+.muted{color:var(--muted)}
+.fine{font-size:.8rem;color:var(--muted);margin:0}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;opacity:0}
+
+/* Top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--band);color:var(--on-band)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand h1{font-size:1.3rem;font-weight:800;font-stretch:80%;white-space:nowrap}
+.shelf{display:inline-flex;align-items:center;gap:6px;background:var(--tag);color:var(--tag-ink);font-family:var(--f-mono);font-weight:600;font-size:.72rem;padding:3px 8px 3px 6px;border-radius:3px;letter-spacing:.04em}
+.shelf::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--band)}
+.top-stats{font-family:var(--f-mono);font-size:.75rem;opacity:.9;text-align:right;white-space:nowrap}
+
+/* Banner + toast */
+.banner{margin-top:12px;padding:10px 12px;border-radius:var(--r);background:var(--warn-bg);color:var(--warn);font-size:.88rem}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 12px);z-index:40;max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:.88rem;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+
+/* Main */
+main{padding-block:14px calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 28px)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.panel-h h2{font-size:1.35rem;font-weight:800}
+.hint{margin:0;font-size:.88rem;color:var(--muted)}
+.hint q{color:var(--ink);font-style:italic}
+
+/* Buttons */
+.btn{appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;min-height:42px}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,.shot:focus-within,.chip:focus-visible,summary:focus-visible{outline:3px solid var(--tag);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.big{min-height:54px;font-size:1.05rem;width:100%}
+.btn.sm{min-height:36px;padding:7px 11px;font-size:.85rem}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.confirm{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Forms */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+label,.lbl{font-size:.78rem;font-weight:600;color:var(--muted);letter-spacing:.02em}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=date],textarea{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:10px 11px;min-height:44px}
+textarea{resize:vertical;line-height:1.45}
+.check{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--ink);font-weight:500}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.inrow{display:flex;gap:8px}
+.inrow input{flex:1;min-width:0}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:7px 14px;font-weight:600;font-size:.86rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+
+/* Capture tiles */
+.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.shot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:118px;max-width:100%;border:1.5px dashed var(--line);border-radius:var(--r);background:var(--surface-2);cursor:pointer;text-align:center;padding:8px;overflow:hidden;font-weight:600;font-size:.84rem;color:var(--ink)}
+.shot svg{width:28px;height:28px;flex:none;color:var(--accent)}
+.shot small{font-weight:500;color:var(--muted);font-size:.72rem;line-height:1.25}
+.shot.has{border-style:solid;border-color:var(--accent);padding:0}
+.shot.has img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.shot .badge{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(10,20,15,.78);color:#fff;border-radius:7px;padding:3px 6px;font-size:.7rem;font-weight:600}
+.shot.tagged{background:var(--tag);color:var(--tag-ink);border:none}
+.shot.tagged small{color:var(--tag-ink)}
+.shot.tagged svg{color:var(--tag-ink)}
+
+/* Fireflies panel */
+.ff-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ff-h b{font-family:var(--f-display);font-stretch:85%;font-size:1.1rem}
+.ff-h .muted{font-size:.82rem;flex:1;min-width:140px}
+.led{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.led.ok{background:var(--ok);box-shadow:0 0 0 4px var(--ok-bg)}
+.led.warn{background:var(--warn);box-shadow:0 0 0 4px var(--warn-bg)}
+.led.bad{background:var(--bad);box-shadow:0 0 0 4px var(--bad-bg)}
+.reclist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.reclist li{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.reclist li > div:first-child{display:flex;flex-direction:column;min-width:0}
+
+/* Summary tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.tile b{display:block;font-family:var(--f-display);font-stretch:80%;font-size:1.9rem;line-height:1;font-variant-numeric:tabular-nums;font-weight:800}
+.tile span{font-size:.75rem;color:var(--muted);font-weight:600}
+.tile.hl{background:var(--tag);border-color:var(--tag);color:var(--tag-ink)}
+.tile.hl span{color:var(--tag-ink)}
+
+/* Lead cards */
+.lead{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.lead.flash{animation:flash 1.6s ease-out 1}
+@keyframes flash{0%{box-shadow:0 0 0 4px var(--tag)}100%{box-shadow:0 0 0 0 transparent}}
+.lead-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.lead-t{min-width:0}
+.lead-t h3{font-size:1.45rem;font-weight:800;font-stretch:80%;line-height:1.05;overflow-wrap:anywhere}
+.lead-t p{margin:3px 0 0;font-size:.86rem}
+.pill{flex:none;display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:.74rem;font-weight:700;white-space:nowrap;background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.pill.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.pill.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.pill.info{background:var(--info-bg);color:var(--info);border-color:transparent}
+.spin{width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.step{margin:0;font-size:.85rem;color:var(--info)}
+
+.track{display:grid;grid-template-columns:repeat(6,1fr);gap:0;list-style:none;margin:0;padding:0}
+.track li{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;font-family:var(--f-mono);font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.02em}
+.track li::before{content:"";position:absolute;top:6px;left:-50%;right:50%;height:2px;background:var(--line)}
+.track li:first-child::before{display:none}
+.track i{position:relative;z-index:1;width:14px;height:14px;border-radius:50%;border:2px solid var(--line);background:var(--surface)}
+.track li.done{color:var(--ink)}
+.track li.done i{background:var(--accent);border-color:var(--accent)}
+.track li.done::before{background:var(--accent)}
+.track li.now i{border-color:var(--warn);background:var(--warn-bg)}
+.track li.skip i{border-style:dashed}
+
+.signed{display:flex;align-items:center;gap:8px;background:var(--tag);color:var(--tag-ink);font-weight:700;font-size:.82rem;padding:6px 10px;border-radius:6px;align-self:flex-start}
+.signed::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--bg)}
+.note{border-radius:10px;padding:10px 12px;font-size:.86rem;display:flex;flex-direction:column;gap:8px}
+.note.warn{background:var(--warn-bg);color:var(--warn)}
+.note.bad{background:var(--bad-bg);color:var(--bad)}
+.summary{margin:0;font-size:.92rem}
+
+/* Facility Facts (Nutrition Facts vernacular) */
+.facts{border:2px solid var(--ink);padding:6px 10px 8px;background:var(--surface);color:var(--ink);max-width:100%}
+.facts-title{font-family:var(--f-display);font-weight:900;font-stretch:75%;font-size:2rem;line-height:1;letter-spacing:-.01em}
+.facts-sub{font-size:.82rem;border-bottom:1px solid var(--ink);padding:2px 0 4px}
+.bar{height:9px;background:var(--ink);margin:2px 0}
+.bar.mid{height:5px}
+.bar.thin{height:3px}
+.frow{display:flex;justify-content:space-between;align-items:baseline;gap:14px;border-top:1px solid var(--ink);padding:4px 0;font-size:.88rem}
+.frow > span{font-weight:800;white-space:nowrap}
+.frow > b{font-weight:500;text-align:right;overflow-wrap:anywhere}
+.frow.big > span,.frow.big > b{font-size:1.02rem}
+.frow.big > b{font-weight:800}
+.frow.col{flex-direction:column;align-items:stretch;gap:6px}
+.frow.col > span small{font-weight:500;font-family:var(--f-mono);font-size:.68rem;color:var(--muted);margin-left:6px}
+.big9{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.al{display:flex;justify-content:space-between;gap:4px;border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-size:.74rem;text-transform:capitalize}
+.al i{font-style:normal;font-family:var(--f-mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.03em}
+.al.in{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.al.free{border-color:var(--ok);color:var(--ok)}
+.al.na{color:var(--muted);border-style:dashed}
+.facts-foot{margin:4px 0 0;font-size:.7rem;color:var(--muted)}
+.facts.empty .frow > b{color:var(--muted);font-weight:500}
+
+details.more{border-top:1px solid var(--line);padding-top:10px}
+details.more summary{cursor:pointer;font-weight:600;font-size:.88rem;color:var(--accent)}
+.more-body{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;font-size:.86rem;margin:0}
+.kv dt{color:var(--muted);font-weight:600}
+.kv dd{margin:0;overflow-wrap:anywhere}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.thumbs figure{margin:0;display:flex;flex-direction:column;gap:3px;font-size:.72rem;color:var(--muted)}
+.thumbs img{width:120px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#fff}
+
+/* Thursday */
+.when{display:flex;flex-direction:column;gap:2px}
+.when b{font-family:var(--f-display);font-stretch:80%;font-size:1.6rem;font-weight:800;line-height:1.05}
+.counts{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.fu{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.fu-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.fu-h > div{display:flex;flex-direction:column;min-width:0}
+.fu-h b{font-family:var(--f-display);font-stretch:85%;font-size:1.15rem}
+.fu-h .muted{font-size:.82rem;overflow-wrap:anywhere}
+
+/* Timeline in setup */
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.tl li{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:.88rem}
+.tl li:first-child{border-top:none}
+.tl .mono{color:var(--accent);font-weight:600}
+.conn{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.conn li{display:flex;justify-content:space-between;gap:10px;font-size:.9rem;padding:8px 0;border-top:1px solid var(--line)}
+.conn li:first-child{border-top:none}
+
+/* Empty */
+.empty-state{text-align:center;padding:28px 16px;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty-state h3{color:var(--ink);font-size:1.25rem}
+
+/* Bottom tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:grid;grid-template-columns:repeat(4,1fr);height:var(--tabh)}
+nav.tabs a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:var(--muted);font-size:.72rem;font-weight:600;position:relative}
+nav.tabs a svg{width:22px;height:22px}
+nav.tabs a[aria-current="page"]{color:var(--accent)}
+nav.tabs a[aria-current="page"]::after{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+nav.tabs .count{position:absolute;top:8px;left:calc(50% + 8px);background:var(--tag);color:var(--tag-ink);border-radius:999px;font-size:.62rem;font-weight:700;padding:0 5px;line-height:15px}
+
+/* Sign-up sheet */
+#sheet{position:fixed;inset:0;z-index:50;background:var(--band);color:var(--on-band);overflow-y:auto;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#sheet .wrap{padding-block:22px 28px;display:flex;flex-direction:column;gap:16px;max-width:560px}
+#sheet h2{font-size:2.1rem;font-weight:900;font-stretch:75%;line-height:1}
+#sheet .pledge{font-size:1.05rem;line-height:1.5;margin:0}
+#sheet label{color:var(--on-band);opacity:.85}
+#sheet input{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35);color:var(--on-band)}
+#sheet .btn{border-color:rgba(255,255,255,.4);background:transparent;color:var(--on-band)}
+#sheet .btn.primary{background:var(--tag);color:var(--tag-ink);border-color:var(--tag)}
+.pad-wrap{position:relative;background:#FFFFFF;border-radius:10px;overflow:hidden}
+.pad-wrap canvas{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair}
+.pad-wrap .x{position:absolute;left:16px;right:16px;bottom:38px;border-bottom:1.5px solid #9AA8A0;pointer-events:none}
+.pad-wrap .x::before{content:"Sign here";position:absolute;left:0;top:6px;font-size:.72rem;color:#6B7A72;font-family:var(--f-mono)}
+.tagcard{position:relative;align-self:center;width:min(100%,340px);background:var(--tag);color:var(--tag-ink);border-radius:6px;padding:22px 22px 18px 44px;box-shadow:0 14px 40px rgba(0,0,0,.3);transform:rotate(-2deg);display:flex;flex-direction:column;gap:6px}
+.tagcard::before{content:"";position:absolute;left:14px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:50%;background:var(--band);box-shadow:inset 0 2px 3px rgba(0,0,0,.35)}
+.tagcard small{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase}
+.tagcard .no{font-family:var(--f-display);font-weight:900;font-stretch:75%;font-size:3.4rem;line-height:.9}
+.tagcard .tt{font-family:var(--f-display);font-weight:800;font-stretch:85%;font-size:1.25rem}
+.tagcard .co{font-weight:700;font-size:1.05rem;border-top:2px dashed rgba(43,34,0,.35);padding-top:8px;margin-top:4px;overflow-wrap:anywhere}
+.tagcard img{height:56px;width:auto;mix-blend-mode:multiply;align-self:flex-start}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.tagcard{transform:none}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><span class="shelf" id="evtTag">PLMA</span><h1>Booth Copilot</h1></div>
+  <div class="top-stats" id="topStats"></div>
+</div></header>
+<div class="wrap"><div id="banner"></div></div>
+<main class="wrap" id="main" aria-live="polite"></main>
+<div id="sheet" hidden></div>
+<div id="toast" hidden role="status"></div>
+<nav class="tabs" aria-label="Sections"><div class="wrap" id="tabs"></div></nav>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------- constants & state ---------- */
+const DEFAULTS = {
+  myName: "Kritika",
+  company: "Aekovera",
+  varunName: "Varun",
+  varunEmail: "",
+  eventName: "PLMA 2026",
+  showStart: "2026-11-15",
+  pledgeTitle: "Founding Supplier",
+  pledgeText: "Yes, {supplier} is interested in being an early supplier partner on {company}, so food and CPG brands can find us. Please send me the details by email. No commitment.",
+  followupLabel: "Thursday, Nov 19 · 7:47 AM Central",
+  reminderLabel: "Wednesday, Nov 18 · 7:52 AM Central",
+  autoSend: true,
+  autoCreate: true,
+  dismissed: [],
+  dashboardUrl: ""
+};
+const BIG9 = ["milk","eggs","fish","shellfish","tree nuts","peanuts","wheat","soy","sesame"];
+const TAB = Math.random().toString(36).slice(2, 10);
+const VIEWS = ["capture","suppliers","thursday","setup"];
+const LS_KEY = "plma-booth-draft-v1";
+
+const S = {
+  cap: {}, perm: {}, runtime: true,
+  settings: { ...DEFAULTS }, settingsLoaded: false, settingsExists: false, sform: null,
+  leads: [], leadsLoaded: false, local: {},
+  recs: [], recState: "idle", recMsg: "", recAt: 0, unwatch: null, watchKey: "",
+  myId: null, canImages: false,
+  view: "capture", filter: "all",
+  draft: null, uploading: 0, blobs: {}, blobUrls: {},
+  busy: new Set(), confirm: {}, flash: null, pendingRender: false, matching: false
+};
+
+const $ = (s, r = document) => r.querySelector(s);
+const main = $("#main");
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const nowIso = () => new Date().toISOString();
+const pad2 = n => String(n || 0).padStart(2, "0");
+const newId = () => "L" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || "").trim());
+const firstName = n => String(n || "").trim().split(/\s+/)[0] || "";
+const arr = v => Array.isArray(v) ? v.filter(x => x != null && String(x).trim()).map(x => String(x).trim()).slice(0, 24) : (v ? [String(v)] : []);
+const str = v => (v == null || v === "" || v === "null") ? null : String(v).trim();
+function fmtTime(iso) { const t = Date.parse(iso); if (!t) return ""; return new Date(t).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }); }
+function fmtDate(iso) { const t = Date.parse(iso); if (!t) return ""; return new Date(t).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }); }
+function fill(tpl, l) { return String(tpl || "").replaceAll("{supplier}", l?.company || "our company").replaceAll("{company}", S.settings.company); }
+
+const ICON = {
+  card: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.6-1.4 1.7-2 3-2s2.4.6 3 2M14 10h4M14 13h3"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19c3-1 4.5-4 6.5-4S11 18 13 18s3-3 5-3"/><path d="M15.5 4.5l4 4L10 18l-4.5 1 1-4.5z"/></svg>',
+  capture: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v4H4zM4 11h16v4H4zM4 17h10"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>'
+};
+
+/* ---------- draft (per-device convenience) ---------- */
+function newDraft() { return { company: "", contactName: "", title: "", email: "", phone: "", website: "", address: "", notes: "", interest: "", cardAssetId: null, selfieAssetId: null, signature: null, noRecording: false, cardState: "", cardMsg: "" }; }
+function loadDraft() { try { const d = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (d) return { ...newDraft(), ...d, cardState: d.cardState === "reading" ? "" : d.cardState }; } catch (e) {} return newDraft(); }
+function saveDraft() { try { localStorage.setItem(LS_KEY, JSON.stringify(S.draft)); } catch (e) {} }
+function clearDraft() { S.draft = newDraft(); try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+S.draft = loadDraft();
+
+/* ---------- helpers ---------- */
+function toast(msg, ms = 4200) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, ms); }
+function imgSrc(id) { return id ? (S.blobUrls[id] || "/_blob/" + id) : ""; }
+function getLead(id) { return S.leads.find(l => l.id === id) || S.local[id] || null; }
+function isBooth(r) { return !r.link; }
+function mcpMsg(e, server) {
+  const c = e && e.code;
+  if (c === "needs_reauth") return `Reconnect ${server} in claude.ai Settings → Connectors.`;
+  if (c === "server_not_connected") return `Add the ${server} connector in claude.ai Settings → Connectors.`;
+  if (c === "selection_required") return `Pick which ${server} account to use when claude.ai asks.`;
+  if (c === "approval_required" || c === "not_in_manifest") return `${server} needs your OK for this page. Use "Allow" in Setup.`;
+  if (c === "blocked_by_policy") return `${server} is blocked by your organization's policy.`;
+  if (c === "server_unavailable") return `${server} didn't answer. Try again in a minute.`;
+  if (c === "tool_error") return `${server} reported a problem: ${String(e.message || "").slice(0, 180)}`;
+  if (c === "not_granted" || c === "capability_disabled") return `${server} isn't available in this view. Open the page in claude.ai, signed in.`;
+  return `${server} error (${c || "unknown"}).`;
+}
+function sampleMsg(e) {
+  const c = e && e.code;
+  if (c === "not_granted") return "Claude isn't allowed on this page yet. Use \"Allow\" in Setup.";
+  if (c === "rate_limited") return "Claude is busy or you hit a usage limit. Try again in a minute.";
+  if (c === "images_unavailable") return "This view can't send photos to Claude. Type the card details instead.";
+  if (c === "image_rejected") return "Claude couldn't read that photo. Retake it closer, in good light.";
+  if (c === "invalid_json") return "Claude's answer came back garbled. Tap retry.";
+  if (c === "session_expired") return "Sign in to claude.ai again.";
+  return `Claude error (${c || "unknown"}).`;
+}
+async function safeUpdate(id, patch) {
+  if (S.local[id]) S.local[id] = { ...S.local[id], ...patch };
+  try { await S.cap.db.doc("leads/" + id).update({ ...patch, updatedAt: nowIso() }); } catch (e) { console.warn("update failed", e); }
+}
+async function prepImage(file, max = 1600, q = 0.85) {
+  let src;
+  try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch (e) { src = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); }
+  const w = src.width, h = src.height, s = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(src, 0, 0, c.width, c.height);
+  return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("encode")), "image/jpeg", q));
+}
+function blobToB64(b) { return new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = () => rej(fr.error); fr.readAsDataURL(b); }); }
+async function assetB64(id, max = 1280) {
+  let blob = S.blobs[id];
+  if (!blob) { const r = await fetch("/_blob/" + id); if (!r.ok) throw new Error("photo " + r.status); blob = await r.blob(); }
+  let b64 = await blobToB64(await prepImage(blob, max, 0.8));
+  if (b64.length > 850000) b64 = await blobToB64(await prepImage(blob, 900, 0.7));
+  return b64;
+}
+function normAllergen(s) {
+  const m = { soybeans: "soy", soybean: "soy", soya: "soy", egg: "eggs", "tree nut": "tree nuts", nuts: "tree nuts", peanut: "peanuts", dairy: "milk", "crustacean shellfish": "shellfish", crustaceans: "shellfish", crustacean: "shellfish", sesame: "sesame", gluten: "wheat" };
+  const k = String(s || "").toLowerCase().trim(); return m[k] || k;
+}
+function plmaTitle(l) { return `${S.settings.eventName} · ${l.company || "Supplier"}${l.contactName ? " · " + l.contactName : ""}`.slice(0, 200); }
+function ffLink(id) { return "https://app.fireflies.ai/view/" + encodeURIComponent(id); }
+function looseMatch(a, b) {
+  const n = s => String(s || "").toLowerCase().replace(/\b(inc|llc|ltd|co|corp|company|foods?|the)\b/g, "").replace(/[^a-z0-9]/g, "");
+  const x = n(a), y = n(b); if (!x || !y) return true; return x.includes(y) || y.includes(x);
+}
+
+/* ---------- stages ---------- */
+function stage(l) {
+  const busy = S.busy.has(l.id);
+  const f = l.followup || {};
+  const stale = l.status === "processing" && !busy && Date.now() - Date.parse(l.updatedAt || l.createdAt) > 6 * 60000;
+  if (l.status === "error" || stale) return { cls: "bad", text: stale ? "Interrupted" : "Needs attention" };
+  if (busy || l.status === "processing") return { cls: "info", text: "Working" };
+  if (l.status === "waiting") return { cls: "warn", text: "Waiting for Fireflies" };
+  if (l.status === "transcribing") return { cls: "warn", text: "Fireflies transcribing" };
+  if (f.status === "sent") return { cls: "ok", text: "Followed up" };
+  if (l.matchWarning) return { cls: "warn", text: "Check recording" };
+  if (!l.varun?.sentAt) return { cls: "warn", text: "Varun not emailed" };
+  if (!l.previewUrl) return { cls: "info", text: "With Varun" };
+  return { cls: "ok", text: "Preview ready" };
+}
+function tracker(l) {
+  const f = l.followup || {};
+  const steps = [
+    ["Card", l.cardAssetId || l.email || l.company ? "done" : "skip"],
+    ["Rec", l.noRecording ? "skip" : (l.fireflies?.id && l.details ? "done" : (l.status === "waiting" || l.status === "transcribing" ? "now" : (l.fireflies?.id ? "done" : "")))],
+    ["Facts", l.details ? "done" : (S.busy.has(l.id) ? "now" : "")],
+    ["Varun", l.varun?.sentAt ? "done" : (l.details ? "now" : "")],
+    ["Preview", l.previewUrl ? "done" : (l.varun?.sentAt ? "now" : "")],
+    ["Email", f.status === "sent" ? "done" : (f.status === "hold" ? "skip" : (l.previewUrl ? "now" : ""))]
+  ];
+  return `<ol class="track" aria-label="Progress">${steps.map(([n, s]) => `<li class="${s}"><i></i>${n}</li>`).join("")}</ol>`;
+}
+function fuState(l) {
+  const f = l.followup || {};
+  if (f.status === "sent") return ["sent", "Sent", "ok"];
+  if (f.status === "hold") return ["hold", "On hold", ""];
+  if (!validEmail(l.email)) return ["noemail", "No email", "bad"];
+  if (!f.body) return ["nodraft", "Draft pending", "warn"];
+  if (!l.previewUrl) return ["nopreview", "Needs preview link", "warn"];
+  return ["ready", "Ready", "info"];
+}
+
+/* ---------- rendering ---------- */
+function route() {
+  const h = (location.hash || "").replace("#", "");
+  S.view = VIEWS.includes(h) ? h : "capture";
+  if (S.view === "setup") { S.sform = { ...S.settings }; S.sformDirty = false; }
+  render(true);
+}
+function render(force) {
+  const a = document.activeElement;
+  if (!force && a && main.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "file" && a.type !== "checkbox"))) { S.pendingRender = true; renderChrome(); return; }
+  S.pendingRender = false;
+  renderChrome();
+  main.innerHTML = S.view === "suppliers" ? viewSuppliers() : S.view === "thursday" ? viewThursday() : S.view === "setup" ? viewSetup() : viewCapture();
+  if (S.flash) { const el = document.getElementById("lead-" + S.flash); if (el) { el.classList.add("flash"); el.scrollIntoView({ block: "start", behavior: "smooth" }); } S.flash = null; }
+}
+function renderChrome() {
+  const st = S.settings;
+  $("#evtTag").textContent = st.eventName || "PLMA";
+  const n = S.leads.length, signed = S.leads.filter(l => l.signature).length;
+  $("#topStats").innerHTML = S.leadsLoaded ? `${n} supplier${n === 1 ? "" : "s"}<br>${signed} signed up` : "";
+  const ready = S.leads.filter(l => fuState(l)[0] === "ready").length;
+  const waiting = S.leads.filter(l => l.status === "waiting" || l.status === "transcribing").length;
+  const tabs = [["capture", "Capture", ICON.capture, ""], ["suppliers", "Suppliers", ICON.list, waiting ? waiting : ""], ["thursday", "Thursday", ICON.mail, ready ? ready : ""], ["setup", "Setup", ICON.gear, !st.varunEmail && S.settingsLoaded ? "!" : ""]];
+  $("#tabs").innerHTML = tabs.map(([k, label, ic, c]) => `<a href="#${k}" ${S.view === k ? 'aria-current="page"' : ""}>${ic}<span>${label}</span>${c !== "" ? `<span class="count">${c}</span>` : ""}</a>`).join("");
+  let b = "";
+  if (!S.runtime) b = "Open this page from claude.ai to connect Fireflies, Gmail and the shared supplier list.";
+  else if (S.booted && !S.cap.db) b = "Sign in to claude.ai to save suppliers. Nothing you capture here is stored until you do.";
+  $("#banner").innerHTML = b ? `<div class="banner">${esc(b)}</div>` : "";
+}
+
+/* Capture view */
+function viewCapture() {
+  const d = S.draft;
+  const cardImg = d.cardAssetId ? imgSrc(d.cardAssetId) : (d.cardLocal || "");
+  const selfImg = d.selfieAssetId ? imgSrc(d.selfieAssetId) : (d.selfieLocal || "");
+  const cardBadge = d.cardState === "reading" ? "Reading card…" : d.cardState === "done" ? "Card read ✓ tap to retake" : d.cardState === "error" ? "Couldn't read, type below" : "Tap to retake";
+  const sig = d.signature;
+  const field = (k, label, type = "text", extra = "") => `<div class="field"><label for="f-${k}">${label}</label><input id="f-${k}" type="${type}" data-f="${k}" value="${esc(d[k])}" ${extra} autocomplete="off"></div>`;
+  return `<div class="stack">
+  ${ffPanel()}
+  <section class="panel" aria-labelledby="newh">
+    <div class="panel-h"><h2 id="newh">New supplier</h2><span class="mono muted">${esc(S.settings.eventName)}</span></div>
+    <div class="shots">
+      <label class="shot ${cardImg ? "has" : ""}">
+        <input class="vh" type="file" accept="image/*" capture="environment" data-pick="card" id="pick-card">
+        ${cardImg ? `<img src="${esc(cardImg)}" alt="Business card"><span class="badge">${esc(cardBadge)}</span>` : `${ICON.card}<span>Business card</span><small>Claude reads it</small>`}
+      </label>
+      <label class="shot ${selfImg ? "has" : ""}">
+        <input class="vh" type="file" accept="image/*" capture="user" data-pick="selfie" id="pick-selfie">
+        ${selfImg ? `<img src="${esc(selfImg)}" alt="Photo together"><span class="badge">Tap to retake</span>` : `${ICON.people}<span>Photo together</span><small>For the follow-up</small>`}
+      </label>
+      <button type="button" class="shot ${sig ? "tagged" : ""}" data-act="sign">
+        ${ICON.pen}<span>${sig ? "No. " + pad2(sig.partnerNo) + " signed" : "Sign-up"}</span><small>${sig ? esc(sig.name || "") : esc(S.settings.pledgeTitle)}</small>
+      </button>
+    </div>
+    ${d.cardState === "error" && d.cardMsg ? `<div class="note bad">${esc(d.cardMsg)}</div>` : ""}
+    <div class="grid2">
+      ${field("company", "Company")}
+      ${field("contactName", "Contact name")}
+      ${field("title", "Title")}
+      ${field("email", "Email", "email", 'inputmode="email"')}
+      ${field("phone", "Phone", "tel", 'inputmode="tel"')}
+      ${field("website", "Website", "url", 'inputmode="url"')}
+    </div>
+    <div class="field"><span class="lbl">How interested were they?</span><div class="chips">${["hot", "warm", "cold"].map(k => `<button type="button" class="chip" data-act="interest" data-id="${k}" aria-pressed="${d.interest === k}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div></div>
+    <div class="field"><label for="f-notes">Notes</label><textarea id="f-notes" data-f="notes" rows="3" placeholder="Anything Fireflies won't catch: samples promised, who to call next…">${esc(d.notes)}</textarea></div>
+    <label class="check"><input type="checkbox" id="f-norec" data-fcheck="noRecording" ${d.noRecording ? "checked" : ""}> I didn't record this one (use card and notes only)</label>
+    <button type="button" class="btn primary big" data-act="save" ${S.uploading ? "disabled" : ""}>${S.uploading ? "Saving photo…" : "Save supplier"}</button>
+    <p class="fine">The Fireflies recording is matched by time and renamed to the company. ${esc(S.settings.varunName)} is emailed as soon as the details are pulled out.${d.company || d.contactName || d.notes || d.cardAssetId ? ` <button type="button" class="btn ghost sm" data-act="cleardraft">Clear form</button>` : ""}</p>
+  </section>
+  </div>`;
+}
+function ffPanel() {
+  const st = S.recState;
+  const booth = S.recs.filter(isBooth);
+  let led = "", line = "", extra = "";
+  if (st === "ok") { led = "ok"; line = `Checked ${new Date(S.recAt || Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${booth.length} booth recording${booth.length === 1 ? "" : "s"} since ${fmtDate(S.settings.showStart + "T12:00:00")}`; }
+  else if (st === "loading" || st === "idle") { line = "Connecting…"; }
+  else if (st === "connect") { led = "warn"; line = "Needs your OK to read recordings"; extra = `<button class="btn primary sm" data-act="ffconnect">Connect Fireflies</button>`; }
+  else if (st === "unavailable") { led = "bad"; line = "Not reachable from this view"; }
+  else { led = "bad"; line = S.recMsg || "Couldn't reach Fireflies"; extra = `<button class="btn sm" data-act="ffconnect">Try again</button>`; }
+  const un = unmatched();
+  const grace = S.settings.autoCreate;
+  return `<section class="panel" aria-labelledby="ffh">
+    <div class="ff-h"><span class="led ${led}"></span><b id="ffh">Fireflies</b><span class="muted">${esc(line)}</span>${st === "ok" ? `<button class="btn ghost sm" data-act="ffrefresh" aria-label="Check Fireflies now">Check now</button>` : ""}</div>
+    <p class="hint">Before each chat, hit record in the Fireflies app and say <q>This is Maria from Lakeside Bakery.</q> Save the supplier below when you're done talking.</p>
+    ${extra ? `<div class="acts">${extra}</div>` : ""}
+    ${un.length ? `<div class="field"><span class="lbl">Recordings without a supplier yet</span><ul class="reclist">${un.map(r => {
+      const end = Date.parse(r.start) + r.duration * 60000; const left = Math.max(0, Math.ceil((end + 15 * 60000 - Date.now()) / 60000));
+      return `<li><div><b>${esc(r.title || "Recording")}</b><span class="muted mono">${esc(fmtTime(r.start))} · ${Math.max(1, Math.round(r.duration))} min${grace ? (left ? ` · auto-adds in ${left} min` : " · adding…") : ""}</span></div><div class="acts"><button class="btn sm" data-act="fromrec" data-id="${esc(r.id)}">Make supplier</button><button class="btn ghost sm" data-act="dismiss" data-id="${esc(r.id)}">Not a booth chat</button></div></li>`;
+    }).join("")}</ul></div>` : ""}
+  </section>`;
+}
+function unmatched() {
+  const linked = new Set(S.leads.map(l => l.fireflies && l.fireflies.id).filter(Boolean));
+  const dis = new Set(S.settings.dismissed || []);
+  return S.recs.filter(r => isBooth(r) && !linked.has(r.id) && !dis.has(r.id));
+}
+
+/* Suppliers view */
+function viewSuppliers() {
+  if (!S.leadsLoaded) return `<div class="empty-state"><h3>Loading suppliers…</h3><p>${S.loadSlow ? "Still waiting for the supplier list. Check your connection." : ""}</p></div>`;
+  const L = S.leads;
+  const signed = L.filter(l => l.signature).length;
+  const withPv = L.filter(l => l.previewUrl).length;
+  const waiting = L.filter(l => l.status === "waiting" || l.status === "transcribing").length;
+  const filters = [["all", "All", L.length], ["waiting", "Waiting on Fireflies", waiting], ["varun", "With Varun", L.filter(l => l.varun?.sentAt && !l.previewUrl).length], ["ready", "Preview ready", withPv], ["signed", "Signed up", signed]];
+  const pass = l => S.filter === "all" ? true : S.filter === "waiting" ? (l.status === "waiting" || l.status === "transcribing") : S.filter === "varun" ? (l.varun?.sentAt && !l.previewUrl) : S.filter === "ready" ? !!l.previewUrl : !!l.signature;
+  const shown = L.filter(pass);
+  return `<div class="stack">
+    <div class="tiles">
+      <div class="tile"><b>${L.length}</b><span>Suppliers met</span></div>
+      <div class="tile hl"><b>${signed}</b><span>${esc(S.settings.pledgeTitle)} sign-ups</span></div>
+      <div class="tile"><b>${withPv}<small class="muted" style="font-size:1rem">/${L.length}</small></b><span>Previews ready</span></div>
+      <div class="tile"><b>${waiting}</b><span>Waiting on Fireflies</span></div>
+    </div>
+    ${L.length ? `<div class="chips" role="group" aria-label="Filter">${filters.map(([k, n, c]) => `<button type="button" class="chip" data-act="filter" data-id="${k}" aria-pressed="${S.filter === k}">${n} · ${c}</button>`).join("")}</div>` : ""}
+    ${L.length === 0 ? `<div class="panel empty-state"><h3>No suppliers yet</h3><p>Scan the first business card on the Capture tab. Each supplier you save shows up here with MOQ, certifications and allergens from the conversation, for the whole team.</p><a class="btn primary" href="#capture">Capture a supplier</a></div>` : ""}
+    ${shown.map(leadCard).join("")}
+    ${L.length && !shown.length ? `<p class="muted">Nothing in this filter.</p>` : ""}
+  </div>`;
+}
+function leadCard(l) {
+  const d = l.details || {};
+  const st = stage(l);
+  const busy = S.busy.has(l.id);
+  const who = [l.contactName, l.title].filter(Boolean).map(esc).join(" · ");
+  const mine = !l.createdBy || l.createdBy === S.myId;
+  return `<article class="lead" id="lead-${esc(l.id)}">
+    <div class="lead-h">
+      <div class="lead-t"><h3>${esc(l.company || d.company || "Unnamed supplier")}</h3><p class="muted">${who ? who + " · " : ""}<span class="mono" style="white-space:nowrap">${esc(fmtTime(l.createdAt))}</span>${l.interest ? ` · ${esc(l.interest)}` : ""}</p></div>
+      <span class="pill ${st.cls}">${busy ? '<span class="spin"></span>' : ""}${esc(st.text)}</span>
+    </div>
+    ${tracker(l)}
+    ${l.signature ? `<div class="signed">${esc(S.settings.pledgeTitle)} No. ${pad2(l.signature.partnerNo)} · signed by ${esc(l.signature.name || "")}</div>` : ""}
+    ${busy && l.step ? `<p class="step">${esc(l.step)}…</p>` : ""}
+    ${l.status === "waiting" && !busy ? `<p class="step">Waiting for the Fireflies recording to finish transcribing. It's matched by time${mine ? "" : " on the phone that saved it"}.</p>` : ""}
+    ${l.matchWarning ? `<div class="note warn"><span>The recording talks about <b>${esc(l.matchWarning)}</b>, but the card says <b>${esc(l.company)}</b>.</span><div class="acts"><button class="btn sm" data-act="confirmmatch" data-id="${esc(l.id)}">It's the same, email ${esc(S.settings.varunName)}</button><button class="btn ghost sm" data-act="unlink" data-id="${esc(l.id)}">Wrong recording</button></div></div>` : ""}
+    ${(l.status === "error" || st.text === "Interrupted") && !busy ? `<div class="note bad"><span>${esc(l.error || "Processing stopped before it finished.")}</span><div class="acts"><button class="btn sm" data-act="rerun" data-id="${esc(l.id)}">Retry</button></div></div>` : ""}
+    ${l.varunError ? `<div class="note warn"><span>${esc(l.varunError)}</span></div>` : ""}
+    ${factsPanel(l)}
+    ${d.summary ? `<p class="summary">${esc(d.summary)}</p>` : ""}
+    <div class="field"><label for="pv-${esc(l.id)}">${esc(S.settings.varunName)}'s preview link</label><div class="inrow"><input id="pv-${esc(l.id)}" type="url" inputmode="url" placeholder="Paste the facility preview link" value="${esc(l.previewUrl || "")}"><button class="btn sm" data-act="savepv" data-id="${esc(l.id)}">Save</button></div></div>
+    <div class="acts">
+      ${l.fireflies?.id ? `<a class="btn ghost sm" href="${esc(ffLink(l.fireflies.id))}" target="_blank" rel="noopener">Open in Fireflies ↗</a>` : ""}
+      <button class="btn sm" data-act="varun" data-id="${esc(l.id)}" ${busy ? "disabled" : ""}>${l.varun?.sentAt ? "Email " + esc(S.settings.varunName) + " again" : "Email " + esc(S.settings.varunName) + " now"}</button>
+      ${l.selfieAssetId && validEmail(l.email) ? `<button class="btn sm ${S.confirm["photo" + l.id] ? "confirm" : ""}" data-act="photo" data-id="${esc(l.id)}" ${l.photoSentAt ? "disabled" : ""}>${l.photoSentAt ? "Photo sent ✓" : S.confirm["photo" + l.id] ? "Tap again to email it to " + esc(firstName(l.contactName) || "them") : "Email them our photo"}</button>` : ""}
+      ${l.status === "waiting" ? `<button class="btn ghost sm" data-act="norec" data-id="${esc(l.id)}" ${busy ? "disabled" : ""}>Use card and notes only</button>` : `<button class="btn ghost sm" data-act="rerun" data-id="${esc(l.id)}" ${busy ? "disabled" : ""}>Re-read details</button>`}
+    </div>
+    <details class="more"><summary>Contact, photos and everything else</summary><div class="more-body">
+      <div class="grid2">
+        ${["company:Company", "contactName:Contact name", "title:Title", "email:Email", "phone:Phone", "website:Website"].map(p => { const [k, n] = p.split(":"); return `<div class="field"><label for="e-${k}-${esc(l.id)}">${n}</label><input id="e-${k}-${esc(l.id)}" type="text" data-lead="${esc(l.id)}" data-lf="${k}" value="${esc(l[k] || "")}"></div>`; }).join("")}
+      </div>
+      <dl class="kv">
+        ${kv("Ingredients", d.ingredients)}${kv("Expertise", d.expertise)}${kv("Customers", d.customers)}${kv("Pricing", d.pricing)}${kv("Next steps", d.nextSteps)}${kv("Personal note", d.personalNote)}${kv("Address", l.address)}${kv("Notes", l.notes)}
+        ${kv("Fireflies", l.fireflies ? `${l.fireflies.title || ""} (${fmtTime(l.fireflies.start)})` : (l.noRecording ? "Not recorded" : "Not matched yet"))}
+        ${kv(esc(S.settings.varunName) + " emailed", l.varun?.sentAt ? fmtTime(l.varun.sentAt) : "Not yet")}
+      </dl>
+      <div class="thumbs">
+        ${l.cardAssetId ? `<figure><img src="${esc(imgSrc(l.cardAssetId))}" alt="Business card" loading="lazy"><figcaption>Business card</figcaption></figure>` : ""}
+        ${l.selfieAssetId ? `<figure><img src="${esc(imgSrc(l.selfieAssetId))}" alt="Photo together" loading="lazy"><figcaption>Photo together</figcaption></figure>` : ""}
+        ${l.signature?.assetId ? `<figure><img src="${esc(imgSrc(l.signature.assetId))}" alt="Signature" loading="lazy"><figcaption>Signed ${esc(fmtTime(l.signature.signedAt))}</figcaption></figure>` : ""}
+      </div>
+      <div class="acts">${l.fireflies?.id ? `<button class="btn ghost sm" data-act="unlink" data-id="${esc(l.id)}">Unlink this recording</button>` : ""}<button class="btn ghost sm ${S.confirm["del" + l.id] ? "confirm" : ""}" data-act="dellead" data-id="${esc(l.id)}">${S.confirm["del" + l.id] ? "Tap again to delete" : "Delete supplier"}</button></div>
+    </div></details>
+  </article>`;
+}
+function kv(k, v) { const a = Array.isArray(v) ? v.join(", ") : v; return a ? `<dt>${k}</dt><dd>${esc(a)}</dd>` : ""; }
+function factsPanel(l) {
+  const d = l.details;
+  const list = v => { const a = arr(v); return a.length ? esc(a.join(", ")) : "Not mentioned"; };
+  if (!d) {
+    return `<div class="facts empty"><div class="facts-title">Facility Facts</div><div class="facts-sub">${l.status === "waiting" || l.status === "transcribing" ? "Filled in from the Fireflies transcript" : "Not read yet"}</div><div class="bar"></div>
+      <div class="frow big"><span>MOQ</span><b>…</b></div><div class="bar mid"></div><div class="frow"><span>Certifications</span><b>…</b></div><div class="frow"><span>Allergens</span><b>…</b></div></div>`;
+  }
+  const a = d.allergens || {};
+  const inF = new Set(arr(a.handled).map(normAllergen)), free = new Set(arr(a.free).map(normAllergen));
+  const cells = BIG9.map(x => { const s = inF.has(x) ? "in" : free.has(x) ? "free" : "na"; return `<li class="al ${s}"><span>${x}</span><i>${s === "in" ? "in" : s === "free" ? "free" : "–"}</i></li>`; }).join("");
+  return `<div class="facts" role="group" aria-label="Facility facts">
+    <div class="facts-title">Facility Facts</div>
+    <div class="facts-sub">${esc(d.location || "Location not mentioned")}</div>
+    <div class="bar"></div>
+    <div class="frow big"><span>MOQ</span><b>${esc(d.moq || "Not mentioned")}</b></div>
+    <div class="bar mid"></div>
+    <div class="frow"><span>Certifications</span><b>${list(d.certifications)}</b></div>
+    <div class="frow col"><span>Allergens<small>BIG 9 · IN = IN FACILITY</small></span><ul class="big9">${cells}</ul>${a.notes ? `<small class="muted">${esc(a.notes)}</small>` : ""}</div>
+    <div class="frow"><span>Categories</span><b>${list(d.categories)}</b></div>
+    <div class="frow"><span>Packaging</span><b>${list(d.packaging)}</b></div>
+    ${d.capacity ? `<div class="frow"><span>Capacity</span><b>${esc(d.capacity)}</b></div>` : ""}
+    ${d.leadTime ? `<div class="frow"><span>Lead time</span><b>${esc(d.leadTime)}</b></div>` : ""}
+    <div class="bar thin"></div>
+    <p class="facts-foot">Pulled from ${l.fireflies?.id ? "the Fireflies transcript" : "the card and notes"} by Claude. Check before quoting.</p>
+  </div>`;
+}
+
+/* Thursday view */
+function viewThursday() {
+  const st = S.settings;
+  const L = S.leads;
+  const c = { ready: 0, nopreview: 0, noemail: 0, nodraft: 0, hold: 0, sent: 0 };
+  L.forEach(l => { c[fuState(l)[0]]++; });
+  const order = { ready: 0, nopreview: 1, nodraft: 2, noemail: 3, hold: 4, sent: 5 };
+  const sorted = [...L].sort((a, b) => order[fuState(a)[0]] - order[fuState(b)[0]]);
+  return `<div class="stack">
+    <section class="panel">
+      <div class="when"><span class="mono muted">FOLLOW-UPS GO OUT</span><b>${esc(st.followupLabel)}</b></div>
+      <p class="hint">Every supplier with an email and a preview link gets their follow-up from your Gmail, with ${esc(st.varunName)} in CC. Suppliers still missing a preview link go to ${esc(st.varunName)} in one email so he can finish and send them himself. He gets a reminder on ${esc(st.reminderLabel)}.</p>
+      <label class="check"><input type="checkbox" id="s-autosend" data-scheck="autoSend" ${st.autoSend ? "checked" : ""}> Send automatically on Thursday</label>
+      <ul class="counts">
+        <li class="pill info">${c.ready} ready</li><li class="pill warn">${c.nopreview} need preview</li><li class="pill warn">${c.nodraft} draft pending</li><li class="pill bad">${c.noemail} no email</li><li class="pill">${c.hold} on hold</li><li class="pill ok">${c.sent} sent</li>
+      </ul>
+      <div class="acts">
+        <button class="btn sm ${S.confirm.sendall ? "confirm" : "primary"}" data-act="sendall" ${c.ready && !S.sendingAll ? "" : "disabled"}>${S.sendingAll ? "Sending…" : S.confirm.sendall ? `Tap again to send ${c.ready} email${c.ready === 1 ? "" : "s"}` : `Send all ready (${c.ready})`}</button>
+        <button class="btn sm" data-act="remindvarun" ${c.nopreview + c.nodraft ? "" : "disabled"}>Remind ${esc(st.varunName)} (${c.nopreview + c.nodraft} missing)</button>
+      </div>
+      <p class="fine">These buttons do the same job as the scheduled Wednesday and Thursday runs, from this page.</p>
+    </section>
+    ${L.length ? sorted.map(fuCard).join("") : `<div class="panel empty-state"><h3>No follow-ups yet</h3><p>A Thursday email is drafted for each supplier from the conversation, ready for ${esc(st.varunName)}'s preview link.</p></div>`}
+  </div>`;
+}
+function fuCard(l) {
+  const f = l.followup || {};
+  const [k, label, cls] = fuState(l);
+  const sent = k === "sent";
+  const conf = S.confirm["fu" + l.id];
+  return `<article class="fu">
+    <div class="fu-h"><div><b>${esc(l.company || "Unnamed supplier")}</b><span class="muted">${validEmail(l.email) ? esc(l.contactName ? l.contactName + " · " + l.email : l.email) : "Add their email on the Suppliers tab"}</span></div><span class="pill ${cls}">${esc(label)}</span></div>
+    ${f.body || f.subject ? `
+    <div class="field"><label for="fs-${esc(l.id)}">Subject</label><input type="text" id="fs-${esc(l.id)}" data-lead="${esc(l.id)}" data-fu="subject" value="${esc(f.subject || "")}" ${sent ? "disabled" : ""}></div>
+    <div class="field"><label for="fb-${esc(l.id)}">Message</label><textarea id="fb-${esc(l.id)}" rows="10" data-lead="${esc(l.id)}" data-fu="body" ${sent ? "disabled" : ""}>${esc(f.body || "")}</textarea></div>
+    <p class="fine">{{PREVIEW_LINK}} becomes ${l.previewUrl ? `<a href="${esc(l.previewUrl)}" target="_blank" rel="noopener">${esc(l.previewUrl)}</a>` : esc(S.settings.varunName) + "'s link once he adds it"}.${sent ? ` Sent ${esc(fmtTime(f.sentAt))}.` : ""}</p>` : `<p class="fine">The draft appears once the conversation details are read.</p>`}
+    ${sent ? "" : `<div class="acts">
+      <button class="btn ghost sm" data-act="hold" data-id="${esc(l.id)}">${f.status === "hold" ? "Release" : "Hold"}</button>
+      ${f.body && validEmail(l.email) && f.status !== "hold" ? `<button class="btn sm ${conf ? "confirm" : "primary"}" data-act="sendfu" data-id="${esc(l.id)}">${conf ? (l.previewUrl ? "Tap again to send now" : "Tap again to send without a preview link") : "Send now"}</button>` : ""}
+    </div>`}
+  </article>`;
+}
+
+/* Setup view */
+function viewSetup() {
+  const f = S.sform || S.settings;
+  const inp = (k, label, type = "text", hint = "") => `<div class="field"><label for="s-${k}">${label}</label><input id="s-${k}" type="${type}" data-s="${k}" value="${esc(f[k])}">${hint ? `<span class="fine">${hint}</span>` : ""}</div>`;
+  const p = S.perm || {};
+  const stTxt = v => v === "granted" ? "Allowed" : v === "denied" ? "Turned off" : v === "prompt" ? "Asks on first use" : "Unknown";
+  return `<div class="stack">
+    <section class="panel">
+      <div class="panel-h"><h2>Before the booth</h2></div>
+      <p class="hint">Allow Fireflies, Gmail and Claude once now, so nothing pops up while you're talking to someone. Then send ${esc(f.varunName)} a heads-up so he knows what's coming.</p>
+      <ul class="conn">
+        <li><span>Fireflies (read recordings, rename them)</span><b>${stTxt(p["mcp:Fireflies"])}</b></li>
+        <li><span>Gmail (email ${esc(f.varunName)} and suppliers)</span><b>${stTxt(p["mcp:Gmail"])}</b></li>
+        <li><span>Claude (read cards and transcripts)</span><b>${stTxt(p["sample"])}</b></li>
+      </ul>
+      <div class="acts"><button class="btn primary" data-act="allow">Allow all three</button><button class="btn" data-act="heads">Send ${esc(f.varunName)} a heads-up</button>${S.cap.perms ? `<button class="btn ghost" data-act="manage">Permissions</button>` : ""}</div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Team and event</h2></div>
+      <div class="grid2">
+        ${inp("myName", "Your name")}
+        ${inp("company", "Your company")}
+        ${inp("varunName", "Who builds the previews")}
+        ${inp("varunEmail", "Their email", "email", S.settings.varunEmail ? "" : "From your Nov 11 Fireflies call with Varun. Check it.")}
+        ${inp("eventName", "Event")}
+        ${inp("showStart", "Show started", "date", "Recordings from this date on count as booth chats.")}
+      </div>
+      ${inp("pledgeTitle", "Sign-up name")}
+      <div class="field"><label for="s-pledgeText">Sign-up wording</label><textarea id="s-pledgeText" rows="3" data-s="pledgeText">${esc(f.pledgeText)}</textarea><span class="fine">{supplier} and {company} are filled in. Keep it to one or two lines so nobody needs to read fine print.</span></div>
+      <label class="check"><input type="checkbox" id="s-autocreate" data-sf="autoCreate" ${f.autoCreate ? "checked" : ""}> Turn recordings without a card into suppliers after 15 minutes</label>
+      <label class="check"><input type="checkbox" id="s-autosend2" data-sf="autoSend" ${f.autoSend ? "checked" : ""}> Send the Thursday follow-ups automatically</label>
+      <div class="acts"><button class="btn primary" data-act="savesettings">Save setup</button></div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>How the week runs</h2></div>
+      <ul class="tl">
+        <li><span class="mono">AT THE BOOTH</span><span>Record in Fireflies, scan the card, take a photo, offer the sign-up. Saving matches the recording, renames it to the company, fills in Facility Facts and emails ${esc(f.varunName)}.</span></li>
+        <li><span class="mono">${esc(f.reminderLabel.split("·")[0].trim().toUpperCase())}</span><span>${esc(f.varunName)} gets one reminder listing every supplier still missing a preview link.</span></li>
+        <li><span class="mono">${esc(f.followupLabel.split("·")[0].trim().toUpperCase())}</span><span>Follow-ups go out from your Gmail with ${esc(f.varunName)} in CC. Anyone without a preview goes to ${esc(f.varunName)} to send himself.</span></li>
+      </ul>
+      <p class="fine">The Wednesday and Thursday steps are scheduled tasks Claude runs for you. The Thursday tab's Send buttons are the manual backup.</p>
+    </section>
+  </div>`;
+}
+
+/* ---------- Fireflies ---------- */
+function recInput() { return { fromDate: S.settings.showStart || DEFAULTS.showStart, limit: 50, format: "json" }; }
+function parseRecs(res) {
+  let p = res && res.payload;
+  if (typeof p === "string") { try { p = JSON.parse(p); } catch (e) { p = null; } }
+  const list = Array.isArray(p) ? p : (p && (p.transcripts || p.data?.transcripts || p.results)) || [];
+  return list.filter(x => x && x.id).map(x => ({
+    id: String(x.id), title: x.title || "", start: x.dateString || (x.date ? new Date(Number(x.date) || x.date).toISOString() : ""),
+    duration: Number(x.duration) || 0, link: x.meetingLink || null, status: x.meetingInfo?.summary_status || ""
+  })).sort((a, b) => Date.parse(b.start) - Date.parse(a.start));
+}
+function watchRecs() {
+  const mcp = S.cap.mcp; if (!mcp) { S.recState = "unavailable"; render(); return; }
+  const input = recInput(); const key = JSON.stringify(input);
+  if (S.unwatch && S.watchKey === key) return;
+  if (S.unwatch) S.unwatch();
+  S.watchKey = key;
+  S.unwatch = mcp.watchTool("Fireflies", "fireflies_get_transcripts", input, ev => {
+    if (ev.type === "data") onRecs(ev.result); else onRecErr(ev.error);
+  }, { refetchInterval: 60000, cache: { staleTime: 30000, gcTime: 600000 } });
+}
+function connectFireflies() {
+  const mcp = S.cap.mcp; if (!mcp) return;
+  S.recState = "loading"; render();
+  mcp.callTool("Fireflies", "fireflies_get_transcripts", recInput(), { cache: { staleTime: 0, gcTime: 600000, refresh: true } })
+    .then(r => { onRecs(r); S.perm["mcp:Fireflies"] = "granted"; if (S.unwatch) { S.unwatch(); S.unwatch = null; } watchRecs(); })
+    .catch(onRecErr);
+}
+function onRecs(result) {
+  S.recs = parseRecs(result);
+  S.recState = "ok"; S.recMsg = ""; S.recAt = result?.cache?.storedAt || Date.now();
+  scheduleAuto();
+  render();
+}
+function onRecErr(e) {
+  const c = e && e.code;
+  if (c === "approval_required" || c === "not_in_manifest") S.recState = "connect";
+  else if (c === "not_granted" || c === "capability_disabled") S.recState = "unavailable";
+  else { S.recState = S.recs.length ? "ok" : "error"; S.recMsg = mcpMsg(e, "Fireflies"); if (S.recs.length) toast(S.recMsg); }
+  render();
+}
+async function claimRec(recId, leadId) {
+  try {
+    const ref = S.cap.db.doc("claims/" + recId);
+    const a = await ref.acquire({ holder: TAB, ttlMs: 20000 });
+    if (!a.acquired) return false;
+    const s = await ref.get();
+    const owner = s.exists ? s.data().leadId : null;
+    if (owner && owner !== leadId) return false;
+    await ref.set({ leadId, at: nowIso() });
+    return true;
+  } catch (e) { console.warn("claim", e); return true; }
+}
+let autoTimer = null;
+function scheduleAuto() { clearTimeout(autoTimer); autoTimer = setTimeout(runAuto, 600); }
+async function runAuto() {
+  if (S.matching || !S.leadsLoaded || !S.cap.db || S.recState !== "ok") return;
+  S.matching = true;
+  try {
+    const linked = new Set(S.leads.map(l => l.fireflies && l.fireflies.id).filter(Boolean));
+    const dis = new Set(S.settings.dismissed || []);
+    const free = S.recs.filter(r => isBooth(r) && !linked.has(r.id) && !dis.has(r.id));
+    const mine = l => !l.createdBy || l.createdBy === S.myId;
+    // 1) match waiting suppliers to recordings by time
+    const waiting = S.leads.filter(l => l.status === "waiting" && !l.fireflies && !l.noRecording && mine(l) && !S.busy.has(l.id)).sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    for (const lead of waiting) {
+      const t = Date.parse(lead.createdAt); const rej = new Set(lead.rejected || []);
+      let best = null, bestD = Infinity;
+      for (const r of free) {
+        if (rej.has(r.id)) continue;
+        const s = Date.parse(r.start); if (!s) continue;
+        const e = s + r.duration * 60000;
+        if (s < t - 120 * 60000 || s > t + 45 * 60000) continue;
+        const dd = Math.min(Math.abs(s - t), Math.abs(e - t));
+        if (dd < bestD) { bestD = dd; best = r; }
+      }
+      if (best && await claimRec(best.id, lead.id)) { free.splice(free.indexOf(best), 1); processLead(lead.id, best); }
+    }
+    // 2) recordings that never got a card become suppliers after 15 minutes
+    if (S.settings.autoCreate) {
+      const old = free.filter(r => { const s = Date.parse(r.start); return s && Date.now() - (s + r.duration * 60000) > 15 * 60000; }).slice(0, 3);
+      for (const r of old) await leadFromRec(r.id, true);
+    }
+    // 3) retry recordings Fireflies was still transcribing
+    for (const l of S.leads) {
+      if (l.status === "transcribing" && mine(l) && !S.busy.has(l.id) && (l.attempts || 0) < 12 && Date.now() - Date.parse(l.lastTry || l.updatedAt || 0) > 90000) processLead(l.id, null);
+    }
+  } finally { S.matching = false; }
+}
+async function leadFromRec(recId, auto) {
+  const r = S.recs.find(x => x.id === recId); if (!r || !S.cap.db) return;
+  const id = newId();
+  if (!(await claimRec(recId, id))) return;
+  const end = new Date((Date.parse(r.start) || Date.now()) + r.duration * 60000).toISOString();
+  const doc = { createdAt: end, updatedAt: nowIso(), createdBy: S.myId, source: auto ? "recording-auto" : "recording", company: "", contactName: "", title: "", email: "", phone: "", website: "", address: "", notes: "", interest: "", cardAssetId: null, selfieAssetId: null, signature: null, noRecording: false, status: "processing", step: "Reading the Fireflies transcript", followup: { status: "queued" } };
+  S.local[id] = { id, ...doc };
+  try { await S.cap.db.doc("leads/" + id).set(doc); } catch (e) { toast("Couldn't save the supplier: " + (e.code || "")); return; }
+  processLead(id, r);
+}
+
+/* ---------- processing ---------- */
+async function processLead(id, rec, opts = {}) {
+  if (S.busy.has(id)) return;
+  let lead = getLead(id); if (!lead) return;
+  S.busy.add(id); render();
+  const ref = S.cap.db.doc("leads/" + id);
+  const up = async patch => { lead = { ...lead, ...patch }; if (S.local[id]) S.local[id] = lead; await ref.update({ ...patch, updatedAt: nowIso() }); };
+  try {
+    if (rec) await up({ fireflies: { id: rec.id, title: rec.title, start: rec.start, duration: rec.duration, renamed: false }, status: "processing", step: "Reading the Fireflies transcript", error: null });
+    let transcript = "";
+    if (lead.fireflies?.id) {
+      await up({ status: "processing", step: "Reading the Fireflies transcript" });
+      const r = await S.cap.mcp.callTool("Fireflies", "fireflies_get_transcript", { transcriptId: lead.fireflies.id }, { cache: false });
+      transcript = transcriptText(r);
+      if (transcript.replace(/\s+/g, "").length < 120) { await up({ status: "transcribing", step: "", attempts: (lead.attempts || 0) + 1, lastTry: nowIso() }); return; }
+    }
+    if (!S.cap.sample) throw { code: "not_granted", where: "sample" };
+    await up({ step: "Pulling out MOQ, certifications and allergens" });
+    const details = await extract(lead, transcript);
+    const patch = { details, status: "extracted", step: "", error: null };
+    if (!lead.company && details.company) patch.company = details.company;
+    if (!lead.contactName && details.contactName) patch.contactName = details.contactName;
+    if (!lead.title && details.contactTitle) patch.title = details.contactTitle;
+    if (!lead.email && validEmail(details.email)) patch.email = details.email;
+    patch.matchWarning = lead.company && details.company && !looseMatch(lead.company, details.company) ? details.company : null;
+    const f = lead.followup || {};
+    if (!f.edited && f.status !== "sent") patch.followup = { subject: details.followupSubject || `Great meeting you at ${S.settings.eventName}`, body: details.followupBody || "", status: f.status === "hold" ? "hold" : "queued" };
+    await up(patch);
+    if (lead.fireflies?.id && !lead.fireflies.renamed) {
+      await up({ step: "Renaming the Fireflies recording" });
+      const title = plmaTitle(lead);
+      try { await S.cap.mcp.callTool("Fireflies", "fireflies_update_meeting_title", { meetingId: lead.fireflies.id, title }); await up({ fireflies: { ...lead.fireflies, renamed: true, title } }); }
+      catch (e) { await up({ renameError: mcpMsg(e, "Fireflies") }); }
+    }
+    await up({ step: "" });
+    if ((!lead.varun?.sentAt || !lead.varun.withDetails) && !lead.matchWarning && !opts.noVarun) { S.busy.delete(id); await notifyVarun(id, lead); }
+  } catch (e) {
+    const msg = e && e.where === "sample" ? sampleMsg(e) : (e && e.code && /^(invalid_json|rate_limited|refused|empty_completion|prompt_too_large|session_expired|sampling_disabled)$/.test(e.code)) ? sampleMsg(e) : (e && e.code ? mcpMsg(e, "Fireflies") : String(e && e.message || e));
+    try { await up({ status: "error", step: "", error: msg }); } catch (x) {}
+  } finally { S.busy.delete(id); render(); }
+}
+function transcriptText(r) {
+  let p = r && r.payload;
+  if (typeof p === "string") return p.slice(0, 160000);
+  if (p && Array.isArray(p.sentences)) return p.sentences.map(s => `${s.speaker_name || s.speaker || "Speaker"}: ${s.text || s.raw_text || ""}`).join("\n").slice(0, 160000);
+  if (p) return JSON.stringify(p).slice(0, 160000);
+  const t = (r && r.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+  return t.slice(0, 160000);
+}
+async function extract(lead, transcript) {
+  const st = S.settings;
+  const card = ["name: " + (lead.contactName || ""), "title: " + (lead.title || ""), "company: " + (lead.company || ""), "email: " + (lead.email || ""), "phone: " + (lead.phone || ""), "website: " + (lead.website || ""), "address: " + (lead.address || "")].join("\n");
+  const prompt = `You help ${st.myName} from ${st.company}, a sourcing platform that matches food and CPG brands with manufacturers, co-packers, packaging and ingredient suppliers, capture supplier conversations at ${st.eventName}, the private label trade show.
+
+Below is what was typed or scanned from the supplier's business card, ${st.myName}'s notes, and the Fireflies transcript of the booth conversation. ${st.myName} usually opens the recording by saying who she is talking to ("this is X from Y"). Speaker labels may be wrong; go by content.
+
+BUSINESS CARD:
+${card}
+
+NOTES FROM ${st.myName.toUpperCase()}:
+${lead.notes || "(none)"}
+
+TRANSCRIPT:
+"""
+${transcript || "(no recording for this conversation; use the card and notes only)"}
+"""
+
+Reply with ONLY one JSON object with exactly these keys. Use null or [] when something was not said. Never invent facts. Keep values short and specific, with numbers and units as spoken.
+{
+ "company": supplier company name or null,
+ "contactName": the supplier person's name or null,
+ "contactTitle": their title or null,
+ "email": their email only if spelled out, else null,
+ "summary": "1-2 sentences: who they are and what they make",
+ "moq": "minimum order quantities as stated, per category if given, e.g. '10,000 units per SKU; 1 pallet for sauces'" or null,
+ "certifications": ["e.g. SQF Level 2", "USDA Organic", "Kosher", "Halal", "Non-GMO Project", "BRCGS", "FDA registered"],
+ "allergens": {"handled": [Big 9 allergens present in the facility], "free": [Big 9 allergens the facility is free of], "notes": "dedicated lines, peanut-free plant, etc." or null},
+ "categories": [product categories and capabilities],
+ "packaging": [packaging formats and expertise, e.g. "stand-up pouches", "glass jars", "co-packing"],
+ "ingredients": [notable ingredients they source or supply],
+ "location": facility location(s) or null,
+ "capacity": production capacity or null,
+ "leadTime": lead times or null,
+ "expertise": what this manufacturer is especially good at, or null,
+ "customers": [retailers or brands they say they work with],
+ "pricing": pricing details or null,
+ "interest": "hot", "warm", "cold" or null, meaning their interest in working with ${st.company},
+ "nextSteps": [agreed next steps],
+ "personalNote": one friendly personal detail useful for rapport (hometown, family, sport, travel) if mentioned, else null,
+ "followupSubject": string,
+ "followupBody": string
+}
+Big 9 allergen names, use exactly these words: milk, eggs, fish, shellfish, tree nuts, peanuts, wheat, soy, sesame.
+
+followupBody is a short, warm, plain-text email (no markdown, under 170 words) from ${st.myName} at ${st.company} to the contact, sent on the Thursday after the show. It must:
+- greet the contact by first name ("Hi there" if unknown);
+- say it was great to meet at PLMA and mention one specific thing from the conversation (use personalNote if there is one);
+- include this line exactly, with the company name filled in: "Here's a preview of how <their company>'s facility looks on ${st.company}: {{PREVIEW_LINK}}" (keep the literal token {{PREVIEW_LINK}});
+- list the 3 to 5 most useful captured facts (MOQ, certifications, allergens, categories, packaging) as lines starting with "- ";
+- ask them to reply with anything we missed or got wrong;
+- say ${st.varunName} is copied and set up their profile;
+- sign off with "${st.myName}" and "${st.company}" on separate lines.
+followupSubject: under 60 characters, for example "Great meeting you at PLMA: your ${st.company} preview".`;
+  const raw = await S.cap.sample.json(prompt, { modelTier: "default" }).catch(e => { throw { ...e, where: "sample" }; });
+  const o = raw && typeof raw === "object" ? raw : {};
+  const al = o.allergens && typeof o.allergens === "object" ? o.allergens : {};
+  return {
+    company: str(o.company), contactName: str(o.contactName), contactTitle: str(o.contactTitle), email: str(o.email),
+    summary: str(o.summary), moq: str(o.moq), certifications: arr(o.certifications),
+    allergens: { handled: arr(al.handled).map(normAllergen), free: arr(al.free).map(normAllergen), notes: str(al.notes) },
+    categories: arr(o.categories), packaging: arr(o.packaging), ingredients: arr(o.ingredients),
+    location: str(o.location), capacity: str(o.capacity), leadTime: str(o.leadTime), expertise: str(o.expertise),
+    customers: arr(o.customers), pricing: str(o.pricing), interest: str(o.interest), nextSteps: arr(o.nextSteps),
+    personalNote: str(o.personalNote), followupSubject: str(o.followupSubject), followupBody: str(o.followupBody),
+    extractedAt: nowIso()
+  };
+}
+
+/* ---------- emails ---------- */
+function varunHtml(l) {
+  const st = S.settings, d = l.details || {}, a = d.allergens || {};
+  const row = (k, v) => { const t = Array.isArray(v) ? v.join(", ") : v; return t ? `<tr><td style="padding:4px 14px 4px 0;color:#566760;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:4px 0;vertical-align:top"><b>${esc(t)}</b></td></tr>` : ""; };
+  const who = [l.contactName, l.title].filter(Boolean).join(", ");
+  const facts = row("MOQ", d.moq) + row("Certifications", d.certifications) + row("Allergens in facility", a.handled) + row("Allergen-free", a.free) + row("Allergen notes", a.notes) + row("Categories", d.categories) + row("Packaging", d.packaging) + row("Ingredients", d.ingredients) + row("Location", d.location) + row("Capacity", d.capacity) + row("Lead time", d.leadTime) + row("Expertise", d.expertise) + row("Customers", d.customers) + row("Pricing", d.pricing) + row("Next steps", d.nextSteps);
+  const contact = row("Name", who) + row("Email", l.email) + row("Phone", l.phone) + row("Website", l.website) + row("Address", l.address);
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#13241D">
+<p>Hi ${esc(st.varunName)},</p>
+<p>${esc(st.myName)} just talked to <b>${esc(who || "a contact")}</b> from <b>${esc(l.company || d.company || "a new supplier")}</b> at ${esc(st.eventName)}.</p>
+<p><b>Please create their facility profile on the platform</b> and reply to this email with the preview link (or paste it on the dashboard) by Wednesday. The follow-up to them goes out Thursday morning with you in CC.</p>
+<h3 style="margin:18px 0 6px;font-size:15px">Facility facts</h3>
+<table style="border-collapse:collapse;font-size:14px">${facts || row("Details", "No recording; see notes and card")}</table>
+${d.summary ? `<p style="margin-top:12px">${esc(d.summary)}</p>` : ""}
+<h3 style="margin:18px 0 6px;font-size:15px">Contact</h3>
+<table style="border-collapse:collapse;font-size:14px">${contact}</table>
+<p style="margin-top:12px">${esc(st.pledgeTitle)} sign-up: <b>${l.signature ? `Signed (No. ${pad2(l.signature.partnerNo)}, ${esc(l.signature.name || "")})` : "Not signed"}</b>${l.interest || d.interest ? `<br>Interest: <b>${esc(l.interest || d.interest)}</b>` : ""}</p>
+${l.notes ? `<p><b>${esc(st.myName)}'s notes:</b> ${esc(l.notes)}</p>` : ""}
+<p>${l.fireflies?.id ? `<a href="${esc(ffLink(l.fireflies.id))}">Fireflies recording</a>` : "No recording"}${st.dashboardUrl ? ` · <a href="${esc(st.dashboardUrl)}">Supplier dashboard</a>` : ""}</p>
+<p style="color:#566760;font-size:12px">Sent by the PLMA Booth Copilot. The business card is attached when one was scanned.</p>
+</div>`;
+}
+function varunText(l) {
+  const st = S.settings, d = l.details || {}, a = d.allergens || {};
+  const j = v => Array.isArray(v) ? v.join(", ") : (v || "");
+  const lines = [`Hi ${st.varunName},`, "", `${st.myName} just talked to ${[l.contactName, l.title].filter(Boolean).join(", ") || "a contact"} from ${l.company || d.company || "a new supplier"} at ${st.eventName}.`, "Please create their facility profile on the platform and reply with the preview link by Wednesday. The follow-up goes out Thursday morning with you in CC.", "",
+    ["MOQ", d.moq], ["Certifications", j(d.certifications)], ["Allergens in facility", j(a.handled)], ["Allergen-free", j(a.free)], ["Categories", j(d.categories)], ["Packaging", j(d.packaging)], ["Ingredients", j(d.ingredients)], ["Location", d.location], ["Email", l.email], ["Phone", l.phone], ["Website", l.website]
+  ].map(x => Array.isArray(x) ? (x[1] ? `${x[0]}: ${x[1]}` : null) : x).filter(x => x !== null);
+  if (l.fireflies?.id) lines.push("", "Fireflies: " + ffLink(l.fireflies.id));
+  if (st.dashboardUrl) lines.push("Dashboard: " + st.dashboardUrl);
+  return lines.join("\n");
+}
+async function notifyVarun(id, given) {
+  const l = given || getLead(id); const st = S.settings;
+  if (!l) return;
+  if (!validEmail(st.varunEmail)) { await safeUpdate(id, { varunError: `Add ${st.varunName}'s email in Setup, then tap "Email ${st.varunName} now".` }); render(); return; }
+  if (!S.cap.mcp) { toast("Gmail isn't reachable from this view."); return; }
+  S.busy.add(id); render();
+  try {
+    const again = !!l.varun?.sentAt;
+    const input = { to: [st.varunEmail.trim()], subject: `${again ? "Update: " : "New "}${st.eventName} supplier: ${l.company || l.contactName || "unnamed"} (please add to the platform)`, htmlBody: varunHtml(l), body: varunText(l) };
+    if (again && l.varun.threadId) input.replyThreadId = l.varun.threadId;
+    if (l.cardAssetId) { try { const b64 = await assetB64(l.cardAssetId, 1280); input.attachments = [{ content: b64, filename: (l.company || "business").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + "-card.jpg", mimeType: "image/jpeg" }]; } catch (e) { console.warn("card attach", e); } }
+    const r = await S.cap.mcp.callTool("Gmail", "send_message", input);
+    const p = (r && r.payload) || {};
+    await safeUpdate(id, { varun: { sentAt: nowIso(), threadId: p.threadId || l.varun?.threadId || null, messageId: p.id || null, withDetails: !!l.details }, varunError: null, status: l.details ? "notified" : l.status });
+    toast(`${st.varunName} has ${l.company || "the new supplier"}.`);
+  } catch (e) {
+    const amb = e && (e.code === "server_unavailable" || e.code === "upstream_error");
+    await safeUpdate(id, { varunError: mcpMsg(e, "Gmail") + (amb ? " It may have gone out anyway; check Sent before trying again." : "") });
+  } finally { S.busy.delete(id); render(); }
+}
+function fillPreview(body, url) {
+  if (url) return String(body || "").replaceAll("{{PREVIEW_LINK}}", url);
+  return String(body || "").split("\n").map(line => line.includes("{{PREVIEW_LINK}}") ? `${S.settings.varunName} will send over a preview of your facility profile shortly.` : line).join("\n");
+}
+async function sendFollowup(id) {
+  const l = getLead(id), st = S.settings, f = l.followup || {};
+  if (!validEmail(l.email) || !f.body) return;
+  S.busy.add(id); render();
+  try {
+    const input = { to: [l.email.trim()], subject: f.subject || `Great meeting you at ${st.eventName}`, body: fillPreview(f.body, l.previewUrl) };
+    if (validEmail(st.varunEmail)) input.cc = [st.varunEmail.trim()];
+    await S.cap.mcp.callTool("Gmail", "send_message", input);
+    await safeUpdate(id, { followup: { ...f, status: "sent", sentAt: nowIso(), sentBy: "app" } });
+    toast(`Follow-up sent to ${l.contactName || l.email}.`);
+  } catch (e) {
+    const amb = e && (e.code === "server_unavailable" || e.code === "upstream_error");
+    toast(mcpMsg(e, "Gmail") + (amb ? " Check Sent before sending again." : ""), 7000);
+  } finally { S.busy.delete(id); S.confirm["fu" + id] = false; render(); }
+}
+async function sendPhoto(id) {
+  const l = getLead(id), st = S.settings;
+  if (!l || !l.selfieAssetId || !validEmail(l.email)) return;
+  S.busy.add(id); render();
+  try {
+    const b64 = await assetB64(l.selfieAssetId, 1280);
+    const fn = firstName(l.contactName);
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5"><p>Hi ${esc(fn || "there")},</p><p>So great meeting you at ${esc(st.eventName)}! Here's our photo from today.</p><p><img src="cid:att0" alt="Our photo from ${esc(st.eventName)}" style="max-width:100%;border-radius:8px"></p><p>Talk soon,<br>${esc(st.myName)}<br>${esc(st.company)}</p></div>`;
+    await S.cap.mcp.callTool("Gmail", "send_message", { to: [l.email.trim()], subject: `Our photo from ${st.eventName}`, htmlBody: html, body: `Hi ${fn || "there"},\n\nSo great meeting you at ${st.eventName}! Here's our photo from today.\n\nTalk soon,\n${st.myName}\n${st.company}`, attachments: [{ content: b64, filename: "plma-photo.jpg", mimeType: "image/jpeg", inline: true }] });
+    await safeUpdate(id, { photoSentAt: nowIso() });
+    toast("Photo sent.");
+  } catch (e) { toast(mcpMsg(e, "Gmail"), 6000); }
+  finally { S.busy.delete(id); S.confirm["photo" + id] = false; render(); }
+}
+
+async function remindVarun() {
+  const st = S.settings;
+  if (!validEmail(st.varunEmail)) { toast(`Add ${st.varunName}'s email in Setup first.`); return; }
+  if (!S.cap.mcp) return;
+  const missing = S.leads.filter(l => !l.previewUrl && (l.followup || {}).status !== "sent" && (l.followup || {}).status !== "hold");
+  if (!missing.length) { toast("Every supplier already has a preview link."); return; }
+  const lines = missing.map((l, i) => {
+    const d = l.details || {}, a = d.allergens || {};
+    const facts = [d.moq ? "MOQ: " + d.moq : "", arr(d.certifications).length ? "Certs: " + arr(d.certifications).join(", ") : "", arr(a.handled).length ? "Allergens in facility: " + arr(a.handled).join(", ") : ""].filter(Boolean).join(" | ");
+    return `${i + 1}. ${l.company || "Unnamed supplier"}${l.contactName ? " (" + l.contactName + ")" : ""}${l.email ? " - " + l.email : ""}${facts ? "\n   " + facts : ""}`;
+  }).join("\n");
+  const body = `Hi ${st.varunName},\n\n${missing.length} supplier${missing.length === 1 ? "" : "s"} from ${st.eventName} still need a facility preview before the follow-ups go out (${st.followupLabel}):\n\n${lines}\n\nPlease reply in each supplier's email thread with the preview link, or paste it on the dashboard${st.dashboardUrl ? ": " + st.dashboardUrl : ""}.\n\nThanks!\n${st.myName}`;
+  try {
+    await S.cap.mcp.callTool("Gmail", "send_message", { to: [st.varunEmail.trim()], subject: `${st.eventName} previews: ${missing.length} still needed`, body });
+    toast(`Reminder sent to ${st.varunName}.`);
+  } catch (e) { toast(mcpMsg(e, "Gmail"), 6000); }
+}
+
+/* ---------- capture actions ---------- */
+async function onPick(kind, file) {
+  if (!file) return;
+  let blob; try { blob = await prepImage(file, 1600, 0.85); } catch (e) { blob = file; }
+  const local = URL.createObjectURL(blob);
+  if (kind === "card") { S.draft.cardLocal = local; S.draft.cardAssetId = null; S.draft.cardState = "reading"; S.draft.cardMsg = ""; }
+  else { S.draft.selfieLocal = local; S.draft.selfieAssetId = null; }
+  render(true);
+  if (S.cap.assets) {
+    S.uploading++; render(true);
+    S.cap.assets.upload(blob, { type: "image/jpeg" }).then(r => {
+      S.blobs[r.id] = blob; S.blobUrls[r.id] = local;
+      if (kind === "card") S.draft.cardAssetId = r.id; else S.draft.selfieAssetId = r.id;
+      saveDraft();
+    }).catch(e => toast("Couldn't store the photo (" + (e.code || "error") + "). It stays on this screen until you save.")).finally(() => { S.uploading--; render(); });
+  } else toast("Photos can only be stored by people who can edit this page.");
+  if (kind === "card") readCard(blob);
+}
+async function readCard(blob) {
+  const sm = S.cap.sample;
+  if (!sm || !S.canImages) { S.draft.cardState = "error"; S.draft.cardMsg = "This view can't send photos to Claude. Type the card details below."; render(); return; }
+  try {
+    const o = await sm.json(`This photo shows a business card someone handed over at ${S.settings.eventName}, a private label food trade show. Read it and reply with ONLY a JSON object: {"name": string|null, "title": string|null, "company": string|null, "email": string|null, "phone": string|null, "website": string|null, "address": string|null}. Use null for anything not printed on the card. Copy the email exactly as printed, in lowercase. If there are several phone numbers, prefer the mobile or direct line.`, { images: [blob], modelTier: "default", cache: false });
+    const map = { contactName: o?.name, title: o?.title, company: o?.company, email: o?.email, phone: o?.phone, website: o?.website, address: o?.address };
+    for (const [k, v] of Object.entries(map)) {
+      const s = str(v); if (!s || String(S.draft[k] || "").trim()) continue;
+      S.draft[k] = k === "email" ? s.toLowerCase() : s;
+      const el = document.getElementById("f-" + k); if (el && el !== document.activeElement) el.value = S.draft[k];
+    }
+    S.draft.cardState = "done";
+  } catch (e) { S.draft.cardState = "error"; S.draft.cardMsg = sampleMsg(e); }
+  saveDraft(); render();
+}
+async function saveLead() {
+  const d = S.draft;
+  if (!S.cap.db) { toast("Sign in to claude.ai to save suppliers."); return; }
+  const t = v => String(v || "").trim();
+  if (!t(d.company) && !t(d.contactName) && !d.cardAssetId && !t(d.notes)) { toast("Scan a card or type the company first."); return; }
+  if (S.uploading) { toast("Hang on, the photo is still saving."); return; }
+  const id = newId();
+  const doc = {
+    createdAt: nowIso(), updatedAt: nowIso(), createdBy: S.myId, source: "booth",
+    company: t(d.company), contactName: t(d.contactName), title: t(d.title), email: t(d.email).toLowerCase(), phone: t(d.phone), website: t(d.website), address: t(d.address), notes: t(d.notes), interest: d.interest || "",
+    cardAssetId: d.cardAssetId || null, selfieAssetId: d.selfieAssetId || null, signature: d.signature || null,
+    noRecording: !!d.noRecording, status: d.noRecording ? "processing" : "waiting", followup: { status: "queued" }
+  };
+  S.local[id] = { id, ...doc };
+  try { await S.cap.db.doc("leads/" + id).set(doc); }
+  catch (e) { toast(e.code === "quota_exceeded" ? "The supplier list is full." : "Couldn't save (" + (e.code || "error") + "). Try again."); delete S.local[id]; return; }
+  clearDraft();
+  S.flash = id; S.filter = "all";
+  location.hash = "#suppliers";
+  toast(doc.noRecording ? "Saved. Reading the details now." : "Saved. Waiting for the Fireflies recording.");
+  if (doc.noRecording) processLead(id, null);
+  else if (S.cap.mcp && S.recState === "ok") { S.cap.mcp.invalidate("Fireflies", "fireflies_get_transcripts").catch(() => {}); scheduleAuto(); }
+}
+
+/* ---------- sign-up sheet ---------- */
+function openSign() {
+  const d = S.draft, st = S.settings, sheet = $("#sheet");
+  const no = S.leads.filter(l => l.signature).length + 1;
+  sheet.innerHTML = `<div class="wrap" id="signForm">
+    <span class="shelf" style="align-self:flex-start">${esc(st.eventName)} · ${esc(st.company)}</span>
+    <h2>${esc(st.pledgeTitle)}</h2>
+    <p class="pledge">${esc(fill(st.pledgeText, { company: d.company }))}</p>
+    <div class="grid2">
+      <div class="field"><label for="sg-name">Your name</label><input id="sg-name" type="text" value="${esc(d.contactName)}" autocomplete="name"></div>
+      <div class="field"><label for="sg-co">Company</label><input id="sg-co" type="text" value="${esc(d.company)}" autocomplete="organization"></div>
+    </div>
+    <div class="pad-wrap"><canvas id="pad" aria-label="Signature pad"></canvas><div class="x"></div></div>
+    <div class="acts"><button class="btn" data-act="padclear">Clear</button><button class="btn primary" id="signBtn" data-act="padsign" disabled>Sign</button><button class="btn ghost" data-act="sheetclose">Cancel</button></div>
+  </div>`;
+  sheet.hidden = false; document.body.classList.add("locked");
+  S.padNo = no;
+  requestAnimationFrame(() => setupPad($("#pad")));
+}
+function setupPad(c) {
+  const r = c.getBoundingClientRect(), dpr = Math.max(1, window.devicePixelRatio || 1);
+  c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+  const ctx = c.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const reset = () => { ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, r.width, r.height); S.padInk = false; const b = $("#signBtn"); if (b) b.disabled = true; };
+  reset(); S.padReset = reset;
+  ctx.lineWidth = 2.6; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#13241D";
+  let down = false, last = null;
+  const pt = e => { const b = c.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  c.addEventListener("pointerdown", e => { down = true; try { c.setPointerCapture(e.pointerId); } catch (x) {} last = pt(e); ctx.beginPath(); ctx.arc(last.x, last.y, 1.2, 0, Math.PI * 2); ctx.fillStyle = "#13241D"; ctx.fill(); e.preventDefault(); });
+  c.addEventListener("pointermove", e => { if (!down) return; const p = pt(e); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; if (!S.padInk) { S.padInk = true; $("#signBtn").disabled = false; } e.preventDefault(); });
+  const end = () => { down = false; };
+  c.addEventListener("pointerup", end); c.addEventListener("pointercancel", end); c.addEventListener("pointerleave", end);
+}
+async function signNow() {
+  const c = $("#pad"); const name = $("#sg-name").value.trim(); const co = $("#sg-co").value.trim();
+  if (!S.padInk) return;
+  const btn = $("#signBtn"); btn.disabled = true; btn.textContent = "Saving…";
+  const blob = await new Promise(res => c.toBlob(res, "image/png"));
+  let assetId = null;
+  if (S.cap.assets && blob) { try { const r = await S.cap.assets.upload(blob, { type: "image/png" }); assetId = r.id; S.blobs[r.id] = blob; S.blobUrls[r.id] = URL.createObjectURL(blob); } catch (e) { toast("Signature saved on this screen only (" + (e.code || "error") + ")."); } }
+  const sig = { assetId, name, company: co, signedAt: nowIso(), partnerNo: S.padNo, pledge: fill(S.settings.pledgeText, { company: co || S.draft.company }) };
+  S.draft.signature = sig;
+  if (name && !S.draft.contactName) S.draft.contactName = name;
+  if (co && !S.draft.company) S.draft.company = co;
+  saveDraft();
+  const src = assetId ? imgSrc(assetId) : URL.createObjectURL(blob);
+  $("#sheet").innerHTML = `<div class="wrap" style="align-items:center;text-align:center;padding-top:40px">
+    <div class="tagcard" style="text-align:left">
+      <small>${esc(S.settings.eventName)} · ${esc(S.settings.company)}</small>
+      <div class="no">No. ${pad2(sig.partnerNo)}</div>
+      <div class="tt">${esc(S.settings.pledgeTitle)}</div>
+      <div class="co">${esc(co || "Your company")}</div>
+      <img src="${esc(src)}" alt="Signature">
+      <small>Signed by ${esc(name || "you")} · ${esc(fmtDate(sig.signedAt))}</small>
+    </div>
+    <p class="pledge" style="max-width:30ch">Thank you${name ? ", " + esc(firstName(name)) : ""}! We'll email you the details. Nothing else to read or sign.</p>
+    <button class="btn primary big" data-act="sheetclose" style="max-width:360px">Done</button>
+  </div>`;
+}
+function closeSheet() { $("#sheet").hidden = true; $("#sheet").innerHTML = ""; document.body.classList.remove("locked"); render(true); }
+
+/* ---------- settings ---------- */
+async function saveSettings(patch) {
+  if (!S.cap.db) { toast("Sign in to claude.ai to save setup."); return false; }
+  const next = { ...S.settings, ...patch };
+  try {
+    const ref = S.cap.db.doc("config/settings");
+    if (S.settingsExists) await ref.update(patch); else await ref.set(next);
+    S.settings = next; S.settingsExists = true; return true;
+  } catch (e) { toast("Couldn't save setup (" + (e.code || "error") + ")."); return false; }
+}
+
+/* ---------- events ---------- */
+function arm(key) { S.confirm[key] = true; render(true); setTimeout(() => { if (S.confirm[key]) { S.confirm[key] = false; render(); } }, 6000); }
+const ACT = {
+  save: () => saveLead(),
+  cleardraft: () => { clearDraft(); render(true); },
+  sign: () => openSign(),
+  padclear: () => S.padReset && S.padReset(),
+  padsign: () => signNow(),
+  sheetclose: () => closeSheet(),
+  interest: id => { S.draft.interest = S.draft.interest === id ? "" : id; saveDraft(); render(true); },
+  filter: id => { S.filter = id; render(true); },
+  ffconnect: () => connectFireflies(),
+  ffrefresh: () => { if (S.cap.mcp) S.cap.mcp.invalidate("Fireflies", "fireflies_get_transcripts").catch(() => connectFireflies()); toast("Checking Fireflies…", 1800); },
+  fromrec: id => leadFromRec(id, false),
+  dismiss: async id => { await saveSettings({ dismissed: [...(S.settings.dismissed || []), id].slice(-300) }); render(true); },
+  varun: id => notifyVarun(id),
+  rerun: id => { const l = getLead(id); if (l) processLead(id, null, { noVarun: !!l.varun?.withDetails }); },
+  norec: async id => { await safeUpdate(id, { noRecording: true, status: "processing" }); processLead(id, null); },
+  dellead: async id => {
+    if (!S.confirm["del" + id]) { arm("del" + id); return; }
+    const l = getLead(id); if (!l) return;
+    try { await S.cap.db.doc("leads/" + id).delete(); } catch (e) { toast("Couldn't delete (" + (e.code || "error") + ")."); return; }
+    if (l.fireflies?.id) await saveSettings({ dismissed: [...(S.settings.dismissed || []), l.fireflies.id].slice(-300) });
+    toast("Supplier deleted."); render(true);
+  },
+  confirmmatch: async id => { await safeUpdate(id, { matchWarning: null }); const l = getLead(id); if (l && !l.varun?.sentAt) notifyVarun(id, { ...l, matchWarning: null }); },
+  unlink: async id => {
+    const l = getLead(id); if (!l || !l.fireflies?.id) return;
+    const rid = l.fireflies.id;
+    try { await S.cap.db.doc("claims/" + rid).set({ leadId: null, at: nowIso() }); } catch (e) {}
+    await safeUpdate(id, { fireflies: null, details: l.noRecording ? l.details : null, matchWarning: null, status: "waiting", rejected: [...(l.rejected || []), rid] });
+    toast("Unlinked. The next matching recording will be used."); scheduleAuto();
+  },
+  savepv: async id => {
+    const v = ($("#pv-" + CSS.escape(id)) || {}).value || "";
+    const url = v.trim();
+    if (url && !/^https?:\/\//i.test(url)) { toast("Paste a full link starting with https://"); return; }
+    await safeUpdate(id, { previewUrl: url || null, previewFrom: "dashboard" }); toast(url ? "Preview link saved." : "Preview link cleared."); render(true);
+  },
+  photo: id => { if (!S.confirm["photo" + id]) { arm("photo" + id); return; } sendPhoto(id); },
+  hold: async id => { const l = getLead(id); const f = l.followup || {}; await safeUpdate(id, { followup: { ...f, status: f.status === "hold" ? "queued" : "hold" } }); render(true); },
+  sendfu: id => { if (!S.confirm["fu" + id]) { arm("fu" + id); return; } sendFollowup(id); },
+  sendall: async () => {
+    if (!S.confirm.sendall) { arm("sendall"); return; }
+    S.confirm.sendall = false; S.sendingAll = true; render(true);
+    const ready = S.leads.filter(l => fuState(l)[0] === "ready").map(l => l.id);
+    for (const id of ready) { const l = getLead(id); if (l && fuState(l)[0] === "ready") await sendFollowup(id); }
+    S.sendingAll = false; render(true); toast(`Done: ${ready.length} follow-up${ready.length === 1 ? "" : "s"} processed.`);
+  },
+  remindvarun: () => remindVarun(),
+  allow: async () => {
+    const p = S.cap.perms; if (!p) { toast("Permissions aren't available here. Each one asks on first use."); return; }
+    const res = await p.request(["mcp:Fireflies", "mcp:Gmail", "sample"]).catch(() => ({}));
+    Object.assign(S.perm, res);
+    if (res["mcp:Fireflies"] === "granted") { if (S.unwatch) { S.unwatch(); S.unwatch = null; } watchRecs(); }
+    render(true);
+  },
+  manage: async () => { try { await S.cap.perms.manage(); S.perm = await S.cap.perms.state().catch(() => S.perm); } catch (e) { toast("Open the page's Permissions menu in claude.ai."); } render(true); },
+  heads: async () => {
+    const st = S.settings;
+    if (!validEmail(st.varunEmail)) { toast(`Add ${st.varunName}'s email and save setup first.`); return; }
+    if (!S.cap.mcp) return;
+    try {
+      await S.cap.mcp.callTool("Gmail", "send_message", { to: [st.varunEmail.trim()], subject: `${st.eventName}: supplier details will come from this address`, body: `Hi ${st.varunName},\n\nI'm at ${st.eventName} this week. For every supplier I talk to, you'll get an email from this address with their MOQ, certifications, allergens and contact details, with the business card attached.\n\nPlease create their facility profile on the platform and reply to that email with the preview link by Wednesday. On Thursday morning the follow-up goes out to each supplier with you in CC. Anyone still without a preview comes back to you to send yourself.${st.dashboardUrl ? "\n\nDashboard with everything: " + st.dashboardUrl : ""}\n\nThanks!\n${st.myName}` });
+      toast(`Heads-up sent to ${st.varunName}.`);
+    } catch (e) { toast(mcpMsg(e, "Gmail"), 6000); }
+  },
+  savesettings: async () => {
+    const f = { ...S.sform };
+    if (f.varunEmail && !validEmail(f.varunEmail)) { toast("That email doesn't look right."); return; }
+    const before = S.settings.showStart;
+    const ok = await saveSettings(f);
+    if (ok) { S.sformDirty = false; toast("Setup saved."); if (f.showStart !== before) watchRecs(); render(true); }
+  }
+};
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const fn = ACT[b.dataset.act]; if (!fn) return;
+  e.preventDefault(); fn(b.dataset.id, b);
+});
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.dataset.f) { S.draft[el.dataset.f] = el.value; saveDraft(); }
+  else if (el.dataset.s && S.sform) { S.sform[el.dataset.s] = el.value; S.sformDirty = true; }
+});
+document.addEventListener("change", async e => {
+  const el = e.target;
+  if (el.dataset.pick) { const file = el.files && el.files[0]; el.value = ""; onPick(el.dataset.pick, file); return; }
+  if (el.dataset.fcheck) { S.draft[el.dataset.fcheck] = el.checked; saveDraft(); return; }
+  if (el.dataset.sf && S.sform) { S.sform[el.dataset.sf] = el.checked; S.sformDirty = true; return; }
+  if (el.dataset.scheck) { await saveSettings({ [el.dataset.scheck]: el.checked }); toast(el.checked ? "Thursday emails will go out automatically." : "Thursday emails are paused. Use Send now instead."); render(true); return; }
+  if (el.dataset.lead && el.dataset.lf) { const k = el.dataset.lf; let v = el.value.trim(); if (k === "email") v = v.toLowerCase(); await safeUpdate(el.dataset.lead, { [k]: v }); return; }
+  if (el.dataset.lead && el.dataset.fu) { const l = getLead(el.dataset.lead); if (!l) return; await safeUpdate(l.id, { followup: { ...(l.followup || {}), [el.dataset.fu]: el.value, edited: true } }); return; }
+});
+document.addEventListener("focusout", () => { setTimeout(() => { if (S.pendingRender) render(); }, 80); });
+
+/* ---------- boot ---------- */
+async function boot() {
+  route();
+  window.addEventListener("hashchange", route);
+  const c = window.claude;
+  if (!c || !c.use) { S.runtime = false; S.recState = "unavailable"; render(true); return; }
+  const names = ["db", "mcp", "sample", "assets", "user", "permissions"];
+  const got = await Promise.all(names.map(n => c.use(n).catch(() => null)));
+  const [db, mcp, sample, assets, user, perms] = got;
+  S.cap = { db, mcp, sample, assets, user, perms };
+  S.booted = true;
+  if (user) S.myId = await user.id().catch(() => null);
+  if (sample) { const lim = await sample.limits().catch(() => null); S.canImages = !!(lim && lim.images); }
+  if (perms) S.perm = await perms.state().catch(() => ({})) || {};
+  if (db) {
+    const slow = setTimeout(() => { S.loadSlow = true; render(); }, 10000);
+    db.doc("config/settings").onSnapshot(s => {
+      const before = S.settings.showStart;
+      S.settings = { ...DEFAULTS, ...(s.exists ? s.data() : {}) }; S.settingsExists = s.exists; S.settingsLoaded = true;
+      if (S.view === "setup" && !S.sformDirty) S.sform = { ...S.settings };
+      if (before !== S.settings.showStart && S.unwatch) watchRecs();
+      render();
+    }, e => console.warn("settings", e));
+    db.collection("leads").onSnapshot(snap => {
+      clearTimeout(slow); S.loadSlow = false;
+      S.leads = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      for (const l of S.leads) if (S.local[l.id]) delete S.local[l.id];
+      S.leadsLoaded = true; scheduleAuto(); render();
+    }, e => { clearTimeout(slow); toast("The supplier list stopped updating (" + (e.code || "error") + "). Reload the page."); });
+  }
+  if (!mcp) { S.recState = "unavailable"; render(true); return; }
+  const ff = S.perm["mcp:Fireflies"];
+  if (ff === "denied") { S.recState = "error"; S.recMsg = "Fireflies is turned off for this page. Turn it on under Setup → Permissions."; }
+  else if (ff === "prompt") S.recState = "connect";
+  else watchRecs();
+  // One batched ask up front so nothing pops up mid-conversation.
+  const ask = ["mcp:Fireflies", "mcp:Gmail", "sample"].filter(k => S.perm[k] === "prompt");
+  if (perms && ask.length) {
+    perms.request(ask).then(res => { Object.assign(S.perm, res); if (res["mcp:Fireflies"] === "granted") watchRecs(); render(); }).catch(() => {});
+  }
+  render();
+}
+boot();
+})();
+</script>
